@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ロジックツリー</title>
+<style>
+  :root{
+    --ink:#1C2126;
+    --ink-soft:#5B646D;
+    --ink-faint:#8F98A1;
+    --line:#DCDFE3;
+    --line-soft:#E8EAED;
+    --paper:#FFFFFF;
+    --canvas:#F1F2F3;
+    --accent:#26456E;
+    --accent-soft:#E7EDF5;
+    --danger:#8E2F2F;
+    --radius:7px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic Medium","Yu Gothic",Meiryo,sans-serif;
+    color:var(--ink);
+    background:var(--canvas);
+    display:flex;
+    flex-direction:column;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- top bar ---------- */
+  header{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 16px;
+    background:var(--paper);
+    border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  #docName{
+    font-size:15px;
+    font-weight:600;
+    color:var(--ink);
+    border:1px solid transparent;
+    border-radius:var(--radius);
+    padding:5px 8px;
+    min-width:180px;
+    max-width:320px;
+    flex:1 1 180px;
+    font-family:inherit;
+    background:transparent;
+  }
+  #docName:hover{border-color:var(--line)}
+  #docName:focus{outline:none;border-color:var(--accent);background:#fff}
+  .spacer{flex:1 1 auto}
+  .group{display:flex;align-items:center;gap:6px}
+  button,select{
+    font-family:inherit;
+    font-size:13px;
+    color:var(--ink);
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:6px 10px;
+    cursor:pointer;
+    line-height:1.2;
+  }
+  button:hover,select:hover{border-color:var(--ink-faint)}
+  button:active{transform:translateY(1px)}
+  select{max-width:170px}
+  .icon-btn{padding:6px 9px;min-width:32px;text-align:center}
+  .danger-btn:hover{border-color:var(--danger);color:var(--danger)}
+  .zoom-label{font-size:12px;color:var(--ink-soft);min-width:38px;text-align:center}
+
+  /* ---------- canvas ---------- */
+  main{
+    flex:1 1 auto;
+    overflow:auto;
+    padding:28px 32px 80px;
+    background-color:var(--canvas);
+    background-image:radial-gradient(var(--line) 1px,transparent 1px);
+    background-size:22px 22px;
+  }
+  #stage{transform-origin:0 0;display:inline-block;min-width:100%}
+
+  /* ---------- tree ---------- */
+  .row{display:flex;align-items:center}
+  .kids{display:flex;flex-direction:column;position:relative}
+  .kids::before{content:"";position:absolute;left:0;top:50%;width:20px;height:1px;background:var(--line);}
+  .kid{position:relative;padding:6px 0 6px 44px}
+  .kid::before{content:"";position:absolute;left:20px;top:50%;width:24px;height:1px;background:var(--line)}
+  .kid::after{content:"";position:absolute;left:20px;top:0;bottom:0;width:1px;background:var(--line)}
+  .kid:first-child::after{top:50%}
+  .kid:last-child::after{bottom:50%}
+  .kid:only-child::after{display:none}
+
+  .node{
+    position:relative;
+    display:flex;
+    align-items:center;
+    gap:4px;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:7px 8px 7px 10px;
+    min-width:150px;
+    max-width:230px;
+    box-shadow:0 1px 0 rgba(28,33,38,.04);
+  }
+  .node.is-root{
+    background:var(--ink);
+    border-color:var(--ink);
+    min-width:170px;
+  }
+  .node.is-root .text{color:#fff;font-weight:600}
+  .node.depth-1{border-left:3px solid var(--accent)}
+  .node.focused{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+  .text{
+    flex:1 1 auto;
+    font-size:13.5px;
+    line-height:1.5;
+    outline:none;
+    min-width:30px;
+    word-break:break-word;
+    white-space:pre-wrap;
+  }
+  .text:empty::before{content:"（未入力）";color:var(--ink-faint)}
+
+  .tools{display:flex;gap:1px;opacity:0;transition:opacity .12s}
+  .node:hover .tools,.node:focus-within .tools{opacity:1}
+  .t{
+    width:22px;height:22px;padding:0;border:none;background:transparent;
+    color:var(--ink-faint);font-size:14px;line-height:1;border-radius:4px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .t:hover{background:var(--line-soft);color:var(--ink)}
+  .t.del:hover{background:#F6E9E9;color:var(--danger)}
+  .is-root .t{color:#9AA4AE}
+  .is-root .t:hover{background:#333B44;color:#fff}
+
+  .toggle{
+    position:absolute;right:-11px;top:50%;transform:translateY(-50%);
+    width:20px;height:20px;border-radius:50%;
+    border:1px solid var(--line);background:var(--paper);
+    font-size:11px;color:var(--ink-soft);
+    display:flex;align-items:center;justify-content:center;padding:0;z-index:2;
+  }
+  .toggle:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* ---------- footer hint ---------- */
+  footer{
+    flex:0 0 auto;
+    padding:8px 16px;
+    background:var(--paper);
+    border-top:1px solid var(--line);
+    font-size:12px;
+    color:var(--ink-soft);
+    display:flex;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+  kbd{
+    font-family:inherit;font-size:11px;
+    border:1px solid var(--line);border-radius:4px;
+    padding:1px 5px;background:var(--canvas);color:var(--ink);
+  }
+  #saved{margin-left:auto;color:var(--ink-faint)}
+
+  @media print{
+    header,footer{display:none}
+    main{overflow:visible;background:#fff;padding:0}
+    .tools,.toggle{display:none}
+    body{background:#fff}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <input id="docName" value="無題のツリー" aria-label="ツリー名">
+  <div class="group">
+    <select id="docList" aria-label="保存済みのツリー"></select>
+    <button id="newDoc">新規</button>
+    <button id="deleteDoc" class="danger-btn">削除</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="group">
+    <button class="icon-btn" id="zoomOut" aria-label="縮小">−</button>
+    <span class="zoom-label" id="zoomLabel">100%</span>
+    <button class="icon-btn" id="zoomIn" aria-label="拡大">＋</button>
+  </div>
+  <div class="group">
+    <button id="expandAll">全展開</button>
+    <button id="exportMd">Markdown</button>
+    <button id="exportJson">JSON保存</button>
+    <button id="importJson">読み込み</button>
+    <button id="printBtn">印刷</button>
+  </div>
+</header>
+
+<main id="canvas">
+  <div id="stage"></div>
+</main>
+
+<footer>
+  <span><kbd>Tab</kbd> 子を追加</span>
+  <span><kbd>Enter</kbd> 兄弟を追加</span>
+  <span><kbd>Shift</kbd>+<kbd>Enter</kbd> 改行</span>
+  <span><kbd>Esc</kbd> 編集終了</span>
+  <span>空欄で <kbd>Backspace</kbd> 削除</span>
+  <span id="saved"></span>
+</footer>
+
+<input type="file" id="fileInput" accept="application/json" style="display:none">
+
+<script>
+(function () {
+  "use strict";
+
+  var KEY = "logic-tree-store-v1";
+  var store = { docs: {}, current: null };
+  var zoom = 1;
+  var focusTarget = null;
+  var saveTimer = null;
+
+  /* ---------- model ---------- */
+
+  function uid() {
+    return "n" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  function newTree() {
+    return {
+      id: uid(), text: "論点（テーマ）", open: true,
+      kids: [
+        { id: uid(), text: "主要因 1", open: true, kids: [] },
+        { id: uid(), text: "主要因 2", open: true, kids: [] },
+        { id: uid(), text: "主要因 3", open: true, kids: [] }
+      ]
+    };
+  }
+
+  function newDoc(name) {
+    var id = uid();
+    store.docs[id] = { id: id, name: name || "無題のツリー", tree: newTree(), updated: Date.now() };
+    store.current = id;
+    return store.docs[id];
+  }
+
+  function doc() { return store.docs[store.current]; }
+
+  function find(node, id, parent) {
+    if (node.id === id) return { node: node, parent: parent };
+    for (var i = 0; i < node.kids.length; i++) {
+      var r = find(node.kids[i], id, node);
+      if (r) return r;
+    }
+    return null;
+  }
+
+  function blank() { return { id: uid(), text: "", open: true, kids: [] }; }
+
+  /* ---------- storage ---------- */
+
+  function load() {
+    var raw = null;
+    try { raw = localStorage.getItem(KEY); } catch (e) { raw = null; }
+    if (raw) {
+      try {
+        var parsed = JSON.parse(raw);
+        if (parsed && parsed.docs && Object.keys(parsed.docs).length) {
+          store = parsed;
+          if (!store.docs[store.current]) store.current = Object.keys(store.docs)[0];
+          return;
+        }
+      } catch (e) { /* 壊れたデータは無視して作り直す */ }
+    }
+    newDoc("無題のツリー");
+  }
+
+  function save() {
+    if (doc()) doc().updated = Date.now();
+    try {
+      localStorage.setItem(KEY, JSON.stringify(store));
+      note("保存しました");
+    } catch (e) {
+      note("このブラウザでは自動保存できません。JSONで書き出してください");
+    }
+  }
+
+  function saveSoon() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, 400);
+  }
+
+  var noteTimer = null;
+  function note(msg) {
+    var el = document.getElementById("saved");
+    el.textContent = msg;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(function () { el.textContent = ""; }, 1800);
+  }
+
+  /* ---------- render ---------- */
+
+  var stage = document.getElementById("stage");
+
+  function makeTool(label, title, cls, fn) {
+    var b = document.createElement("button");
+    b.className = "t " + (cls || "");
+    b.type = "button";
+    b.textContent = label;
+    b.title = title;
+    b.setAttribute("aria-label", title);
+    b.addEventListener("mousedown", function (e) { e.preventDefault(); });
+    b.addEventListener("click", fn);
+    return b;
+  }
+
+  function makeNode(node, depth) {
+    var isRoot = depth === 0;
+    var el = document.createElement("div");
+    el.className = "node" + (isRoot ? " is-root" : "") + (depth === 1 ? " depth-1" : "");
+    el.dataset.id = node.id;
+
+    var txt = document.createElement("div");
+    txt.className = "text";
+    txt.contentEditable = "true";
+    txt.spellcheck = false;
+    txt.textContent = node.text;
+
+    txt.addEventListener("input", function () {
+      node.text = txt.textContent;
+      saveSoon();
+    });
+    txt.addEventListener("focus", function () { el.classList.add("focused"); });
+    txt.addEventListener("blur", function () { el.classList.remove("focused"); });
+    txt.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") { txt.blur(); return; }
+
+      if (e.key === "Tab") {
+        e.preventDefault();
+        var child = blank();
+        node.kids.push(child);
+        node.open = true;
+        focusTarget = child.id;
+        render(); save();
+        return;
+      }
+
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        if (isRoot) {
+          var first = blank();
+          node.kids.push(first);
+          node.open = true;
+          focusTarget = first.id;
+        } else {
+          var f = find(doc().tree, node.id, null);
+          var sib = blank();
+          var i = f.parent.kids.indexOf(node);
+          f.parent.kids.splice(i + 1, 0, sib);
+          focusTarget = sib.id;
+        }
+        render(); save();
+        return;
+      }
+
+      if (e.key === "Backspace" && txt.textContent === "" && !isRoot) {
+        e.preventDefault();
+        removeNode(node, true);
+      }
+    });
+
+    el.appendChild(txt);
+
+    var tools = document.createElement("div");
+    tools.className = "tools";
+    tools.appendChild(makeTool("＋", "子を追加", "", function () {
+      var c = blank(); node.kids.push(c); node.open = true;
+      focusTarget = c.id; render(); save();
+    }));
+    if (!isRoot) {
+      tools.appendChild(makeTool("↳", "兄弟を追加", "", function () {
+        var f = find(doc().tree, node.id, null);
+        var s = blank();
+        f.parent.kids.splice(f.parent.kids.indexOf(node) + 1, 0, s);
+        focusTarget = s.id; render(); save();
+      }));
+      tools.appendChild(makeTool("×", "削除", "del", function () { removeNode(node, false); }));
+    }
+    el.appendChild(tools);
+
+    if (node.kids.length) {
+      var tg = document.createElement("button");
+      tg.className = "toggle";
+      tg.type = "button";
+      tg.textContent = node.open === false ? String(node.kids.length) : "−";
+      tg.title = node.open === false ? "展開" : "折りたたむ";
+      tg.addEventListener("click", function () {
+        node.open = node.open === false;
+        render(); save();
+      });
+      el.appendChild(tg);
+    }
+
+    return el;
+  }
+
+  function removeNode(node, focusPrev) {
+    var f = find(doc().tree, node.id, null);
+    if (!f || !f.parent) return;
+    var i = f.parent.kids.indexOf(node);
+    f.parent.kids.splice(i, 1);
+    if (focusPrev) focusTarget = i > 0 ? f.parent.kids[i - 1].id : f.parent.id;
+    render(); save();
+  }
+
+  function makeRow(node, depth) {
+    var row = document.createElement("div");
+    row.className = "row";
+    row.appendChild(makeNode(node, depth));
+    if (node.kids.length && node.open !== false) {
+      var kids = document.createElement("div");
+      kids.className = "kids";
+      node.kids.forEach(function (c) {
+        var w = document.createElement("div");
+        w.className = "kid";
+        w.appendChild(makeRow(c, depth + 1));
+        kids.appendChild(w);
+      });
+      row.appendChild(kids);
+    }
+    return row;
+  }
+
+  function render() {
+    stage.innerHTML = "";
+    stage.appendChild(makeRow(doc().tree, 0));
+    stage.style.transform = "scale(" + zoom + ")";
+    document.getElementById("zoomLabel").textContent = Math.round(zoom * 100) + "%";
+    document.getElementById("docName").value = doc().name;
+    renderDocList();
+    if (focusTarget) {
+      var el = stage.querySelector('[data-id="' + focusTarget + '"] .text');
+      focusTarget = null;
+      if (el) {
+        el.focus();
+        var r = document.createRange();
+        r.selectNodeContents(el);
+        r.collapse(false);
+        var s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(r);
+      }
+    }
+  }
+
+  function renderDocList() {
+    var sel = document.getElementById("docList");
+    sel.innerHTML = "";
+    Object.keys(store.docs)
+      .sort(function (a, b) { return store.docs[b].updated - store.docs[a].updated; })
+      .forEach(function (id) {
+        var o = document.createElement("option");
+        o.value = id;
+        o.textContent = store.docs[id].name;
+        if (id === store.current) o.selected = true;
+        sel.appendChild(o);
+      });
+  }
+
+  /* ---------- export ---------- */
+
+  function toMarkdown(node, depth) {
+    var out = depth === 0
+      ? "# " + (node.text || "(未入力)") + "\n\n"
+      : "  ".repeat(depth - 1) + "- " + (node.text || "(未入力)") + "\n";
+    node.kids.forEach(function (c) { out += toMarkdown(c, depth + 1); });
+    return out;
+  }
+
+  function download(filename, text, type) {
+    var blob = new Blob([text], { type: type || "text/plain;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function safeName(s) {
+    return (s || "logic-tree").replace(/[\\/:*?"<>|]/g, "_");
+  }
+
+  /* ---------- wiring ---------- */
+
+  document.getElementById("docName").addEventListener("input", function (e) {
+    doc().name = e.target.value || "無題のツリー";
+    renderDocList();
+    saveSoon();
+  });
+
+  document.getElementById("docList").addEventListener("change", function (e) {
+    store.current = e.target.value;
+    render(); save();
+  });
+
+  document.getElementById("newDoc").addEventListener("click", function () {
+    newDoc("無題のツリー");
+    render(); save();
+    var n = document.getElementById("docName");
+    n.focus(); n.select();
+  });
+
+  document.getElementById("deleteDoc").addEventListener("click", function () {
+    if (!confirm("「" + doc().name + "」を削除します。よろしいですか？")) return;
+    delete store.docs[store.current];
+    var ids = Object.keys(store.docs);
+    if (ids.length) store.current = ids[0]; else newDoc("無題のツリー");
+    render(); save();
+  });
+
+  document.getElementById("zoomIn").addEventListener("click", function () {
+    zoom = Math.min(1.6, Math.round((zoom + 0.1) * 10) / 10); render();
+  });
+  document.getElementById("zoomOut").addEventListener("click", function () {
+    zoom = Math.max(0.5, Math.round((zoom - 0.1) * 10) / 10); render();
+  });
+
+  document.getElementById("expandAll").addEventListener("click", function () {
+    (function walk(n) { n.open = true; n.kids.forEach(walk); })(doc().tree);
+    render(); save();
+  });
+
+  document.getElementById("exportMd").addEventListener("click", function () {
+    download(safeName(doc().name) + ".md", toMarkdown(doc().tree, 0), "text/markdown;charset=utf-8");
+  });
+
+  document.getElementById("exportJson").addEventListener("click", function () {
+    download(safeName(doc().name) + ".json", JSON.stringify(doc(), null, 2), "application/json");
+  });
+
+  document.getElementById("importJson").addEventListener("click", function () {
+    document.getElementById("fileInput").click();
+  });
+
+  document.getElementById("fileInput").addEventListener("change", function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var d = JSON.parse(reader.result);
+        if (!d || !d.tree) throw new Error("形式が違います");
+        d.id = uid();
+        d.name = d.name || "読み込んだツリー";
+        d.updated = Date.now();
+        store.docs[d.id] = d;
+        store.current = d.id;
+        render(); save();
+        note("読み込みました");
+      } catch (err) {
+        alert("このファイルは読み込めません。このツールで書き出したJSONを選んでください。");
+      }
+      e.target.value = "";
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById("printBtn").addEventListener("click", function () { window.print(); });
+
+  document.addEventListener("keydown", function (e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); save(); }
+  });
+
+  load();
+  render();
+})();
+</script>
+</body>
+</html>
