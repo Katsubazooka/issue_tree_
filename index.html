@@ -103,21 +103,24 @@
     display:flex;
     align-items:center;
     gap:4px;
+    width:210px;
+    flex:0 0 210px;
     background:var(--paper);
     border:1px solid var(--line);
     border-radius:var(--radius);
     padding:7px 8px 7px 10px;
-    min-width:150px;
-    max-width:230px;
     box-shadow:0 1px 0 rgba(28,33,38,.04);
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
   }
   .node.is-root{
     background:var(--ink);
     border-color:var(--ink);
-    min-width:170px;
   }
   .node.is-root .text{color:#fff;font-weight:600}
+  .node.tinted .text{color:var(--ink);font-weight:600}
   .node.depth-1{border-left:3px solid var(--accent)}
+  .node.tinted{border-left-width:3px}
   .node.focused{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 
   .text{
@@ -151,6 +154,24 @@
     display:flex;align-items:center;justify-content:center;padding:0;z-index:2;
   }
   .toggle:hover{border-color:var(--accent);color:var(--accent)}
+
+  .palette{
+    position:absolute;top:100%;left:0;margin-top:6px;
+    display:flex;gap:5px;padding:7px;
+    background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:0 6px 18px rgba(28,33,38,.16);z-index:30;
+  }
+  .sw{
+    width:19px;height:19px;padding:0;border-radius:50%;
+    border:1px solid rgba(28,33,38,.18);cursor:pointer;
+  }
+  .sw:hover{transform:scale(1.15)}
+  .sw.on{box-shadow:0 0 0 2px var(--ink)}
+  .sw.clear{background:#fff;position:relative;overflow:hidden}
+  .sw.clear::after{
+    content:"";position:absolute;left:-2px;top:8px;width:23px;height:1px;
+    background:var(--ink-faint);transform:rotate(-45deg);
+  }
 
   /* ---------- footer hint ---------- */
   footer{
@@ -223,6 +244,21 @@
   "use strict";
 
   var KEY = "logic-tree-store-v1";
+
+  var PALETTE = [
+    { key: "", name: "色なし", bg: "", bd: "" },
+    { key: "blue",   name: "青",   bg: "#E3EBF5", bd: "#26456E" },
+    { key: "green",  name: "緑",   bg: "#E2EFE4", bd: "#3B6B43" },
+    { key: "amber",  name: "黄",   bg: "#FAF0D8", bd: "#9A7420" },
+    { key: "red",    name: "赤",   bg: "#F7E5E5", bd: "#8E2F2F" },
+    { key: "purple", name: "紫",   bg: "#EBE8F5", bd: "#4E4783" },
+    { key: "gray",   name: "灰",   bg: "#E7E9EB", bd: "#5B646D" }
+  ];
+
+  function colorOf(key) {
+    for (var i = 0; i < PALETTE.length; i++) if (PALETTE[i].key === key) return PALETTE[i];
+    return PALETTE[0];
+  }
   var store = { docs: {}, current: null };
   var zoom = 1;
   var focusTarget = null;
@@ -328,6 +364,13 @@
     el.className = "node" + (isRoot ? " is-root" : "") + (depth === 1 ? " depth-1" : "");
     el.dataset.id = node.id;
 
+    if (node.color) {
+      var c = colorOf(node.color);
+      el.classList.add("tinted");
+      el.style.background = c.bg;
+      el.style.borderColor = c.bd;
+    }
+
     var txt = document.createElement("div");
     txt.className = "text";
     txt.contentEditable = "true";
@@ -385,6 +428,10 @@
       var c = blank(); node.kids.push(c); node.open = true;
       focusTarget = c.id; render(); save();
     }));
+    tools.appendChild(makeTool("●", "色を変える", "", function (e) {
+      e.stopPropagation();
+      openPalette(el, node);
+    }));
     if (!isRoot) {
       tools.appendChild(makeTool("↳", "兄弟を追加", "", function () {
         var f = find(doc().tree, node.id, null);
@@ -411,6 +458,41 @@
 
     return el;
   }
+
+  function closePalette() {
+    var open = document.querySelector(".palette");
+    if (open) open.parentNode.removeChild(open);
+  }
+
+  function openPalette(anchor, node) {
+    var already = anchor.querySelector(".palette");
+    closePalette();
+    if (already) return;
+
+    var box = document.createElement("div");
+    box.className = "palette";
+    box.addEventListener("click", function (e) { e.stopPropagation(); });
+
+    PALETTE.forEach(function (c) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "sw" + (c.key ? "" : " clear") + ((node.color || "") === c.key ? " on" : "");
+      b.title = c.name;
+      b.setAttribute("aria-label", c.name);
+      if (c.key) { b.style.background = c.bg; b.style.borderColor = c.bd; }
+      b.addEventListener("mousedown", function (ev) { ev.preventDefault(); });
+      b.addEventListener("click", function () {
+        node.color = c.key;
+        closePalette();
+        render(); save();
+      });
+      box.appendChild(b);
+    });
+
+    anchor.appendChild(box);
+  }
+
+  document.addEventListener("click", closePalette);
 
   function removeNode(node, focusPrev) {
     var f = find(doc().tree, node.id, null);
