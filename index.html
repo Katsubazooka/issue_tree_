@@ -98,6 +98,15 @@
   .kid:last-child::after{bottom:50%}
   .kid:only-child::after{display:none}
 
+  /* 横型：ルートを上揃えにし、L字コネクタで枝につなぐ */
+  .row.top{align-items:flex-start}
+  .row.top > .kids::before{top:var(--stub,50%)}
+  .row.top > .kids::after{
+    content:"";position:absolute;left:20px;width:1px;
+    top:var(--elbow-top,50%);height:var(--elbow-h,0);
+    background:var(--line);
+  }
+
   /* ---------- 縦型レイアウト ---------- */
   .vert .row{flex-direction:column;align-items:center}
   .vert .kids{flex-direction:row;align-items:flex-start}
@@ -400,6 +409,7 @@
 
     txt.addEventListener("input", function () {
       node.text = txt.textContent;
+      alignRoot();
       saveSoon();
     });
     txt.addEventListener("focus", function () { el.classList.add("focused"); });
@@ -542,16 +552,42 @@
     return row;
   }
 
+  function alignRoot() {
+    var row = stage.firstChild;
+    if (!row || !row.classList || !row.classList.contains("top")) return;
+    var node = null, kids = null;
+    for (var i = 0; i < row.children.length; i++) {
+      if (row.children[i].classList.contains("node")) node = row.children[i];
+      if (row.children[i].classList.contains("kids")) kids = row.children[i];
+    }
+    if (!node || !kids || !kids.firstChild) return;
+
+    var firstNode = kids.firstChild.querySelector(".node");
+    if (!firstNode) return;
+
+    var kr = kids.getBoundingClientRect();
+    var fr = firstNode.getBoundingClientRect();
+    var c1 = node.offsetHeight / 2;
+    var c2 = (fr.top - kr.top) / (zoom || 1) + firstNode.offsetHeight / 2;
+
+    kids.style.setProperty("--stub", c1 + "px");
+    kids.style.setProperty("--elbow-top", Math.min(c1, c2) + "px");
+    kids.style.setProperty("--elbow-h", Math.abs(c1 - c2) + "px");
+  }
+
   function render() {
     var vertical = doc().layout === "v";
     stage.className = vertical ? "vert" : "";
     document.getElementById("layoutBtn").textContent = vertical ? "表示：縦" : "表示：横";
     stage.innerHTML = "";
-    stage.appendChild(makeRow(doc().tree, 0));
+    var rootRow = makeRow(doc().tree, 0);
+    if (!vertical) rootRow.classList.add("top");
+    stage.appendChild(rootRow);
     stage.style.transform = "scale(" + zoom + ")";
     document.getElementById("zoomLabel").textContent = Math.round(zoom * 100) + "%";
     document.getElementById("docName").value = doc().name;
     renderDocList();
+    alignRoot();
     if (focusTarget) {
       var el = stage.querySelector('[data-id="' + focusTarget + '"] .text');
       focusTarget = null;
