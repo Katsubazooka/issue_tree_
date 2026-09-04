@@ -10,6 +10,7 @@
     --ink-soft:#5B646D;
     --ink-faint:#8F98A1;
     --line:#DCDFE3;
+    --wire:#9AA3AC;
     --line-soft:#E8EAED;
     --paper:#FFFFFF;
     --canvas:#F1F2F3;
@@ -90,21 +91,21 @@
   /* ---------- tree ---------- */
   .row{display:flex;align-items:center}
   .kids{display:flex;flex-direction:column;position:relative}
-  .kids::before{content:"";position:absolute;left:0;top:50%;width:20px;height:1px;background:var(--line);}
+  .kids::before{content:"";position:absolute;left:0;top:50%;width:20px;height:0;border-top:1px solid var(--wire)}
   .kid{position:relative;padding:6px 0 6px 44px}
-  .kid::before{content:"";position:absolute;left:20px;top:50%;width:24px;height:1px;background:var(--line)}
-  .kid::after{content:"";position:absolute;left:20px;top:0;bottom:0;width:1px;background:var(--line)}
+  .kid::before{content:"";position:absolute;left:20px;top:50%;width:24px;height:0;border-top:1px solid var(--wire)}
+  .kid::after{content:"";position:absolute;left:20px;top:0;bottom:0;width:0;border-left:1px solid var(--wire)}
   .kid:first-child::after{top:50%}
   .kid:last-child::after{bottom:50%}
   .kid:only-child::after{display:none}
 
-  /* 横型：ルートを上揃えにし、L字コネクタで枝につなぐ */
+  /* 横型：ルートを上揃えにし、第1子と直線でつなぐ */
   .row.top{align-items:flex-start}
   .row.top > .kids::before{top:var(--stub,50%)}
   .row.top > .kids::after{
-    content:"";position:absolute;left:20px;width:1px;
+    content:"";position:absolute;left:20px;width:0;
     top:var(--elbow-top,50%);height:var(--elbow-h,0);
-    background:var(--line);
+    border-left:1px solid var(--wire);
   }
   .row.top > .kids > .kid:first-child::before{top:var(--kc,50%)}
   .row.top > .kids > .kid:first-child::after{top:var(--kc,50%)}
@@ -112,10 +113,10 @@
   /* ---------- 縦型レイアウト ---------- */
   .vert .row{flex-direction:column;align-items:center}
   .vert .kids{flex-direction:row;align-items:flex-start}
-  .vert .kids::before{left:50%;top:0;width:1px;height:22px}
+  .vert .kids::before{left:50%;top:0;width:0;height:22px;border-top:none;border-left:1px solid var(--wire)}
   .vert .kid{padding:44px 9px 6px 9px}
-  .vert .kid::before{left:50%;top:22px;width:1px;height:22px}
-  .vert .kid::after{left:0;right:0;top:22px;bottom:auto;width:auto;height:1px}
+  .vert .kid::before{left:50%;top:22px;width:0;height:22px;border-top:none;border-left:1px solid var(--wire)}
+  .vert .kid::after{left:0;right:0;top:22px;bottom:auto;width:auto;height:0;border-left:none;border-top:1px solid var(--wire)}
   .vert .kid:first-child::after{left:50%;right:0;top:22px}
   .vert .kid:last-child::after{left:0;right:50%;top:22px}
   .vert .kid:only-child::after{display:none}
@@ -224,10 +225,13 @@
   #saved{margin-left:auto;color:var(--ink-faint)}
 
   @media print{
+    :root{--wire:#333A41;--line:#8B939B}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     header,footer{display:none}
     main{overflow:visible;background:#fff;padding:0}
     .tools,.toggle{display:none}
     body{background:#fff}
+    .node{box-shadow:none}
   }
 </style>
 </head>
