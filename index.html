@@ -98,13 +98,27 @@
   .kid:last-child::after{bottom:50%}
   .kid:only-child::after{display:none}
 
+  /* ---------- 縦型レイアウト ---------- */
+  .vert .row{flex-direction:column;align-items:center}
+  .vert .kids{flex-direction:row;align-items:flex-start}
+  .vert .kids::before{left:50%;top:0;width:1px;height:22px}
+  .vert .kid{padding:44px 9px 6px 9px}
+  .vert .kid::before{left:50%;top:22px;width:1px;height:22px}
+  .vert .kid::after{left:0;right:0;top:22px;bottom:auto;width:auto;height:1px}
+  .vert .kid:first-child::after{left:50%;right:0;top:22px}
+  .vert .kid:last-child::after{left:0;right:50%;top:22px}
+  .vert .kid:only-child::after{display:none}
+  .vert .toggle{
+    right:auto;left:50%;top:auto;bottom:-11px;transform:translateX(-50%);
+  }
+
   .node{
     position:relative;
     display:flex;
     align-items:center;
     gap:4px;
-    width:210px;
-    flex:0 0 210px;
+    width:300px;
+    flex:0 0 300px;
     background:var(--paper);
     border:1px solid var(--line);
     border-radius:var(--radius);
@@ -134,8 +148,16 @@
   }
   .text:empty::before{content:"（未入力）";color:var(--ink-faint)}
 
-  .tools{display:flex;gap:1px;opacity:0;transition:opacity .12s}
-  .node:hover .tools,.node:focus-within .tools{opacity:1}
+  .tools{
+    position:absolute;top:-14px;right:6px;
+    display:flex;gap:1px;padding:1px;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:6px;
+    box-shadow:0 2px 6px rgba(28,33,38,.10);
+    opacity:0;pointer-events:none;transition:opacity .12s;z-index:6;
+  }
+  .node:hover .tools,.node:focus-within .tools{opacity:1;pointer-events:auto}
   .t{
     width:22px;height:22px;padding:0;border:none;background:transparent;
     color:var(--ink-faint);font-size:14px;line-height:1;border-radius:4px;
@@ -143,8 +165,6 @@
   }
   .t:hover{background:var(--line-soft);color:var(--ink)}
   .t.del:hover{background:#F6E9E9;color:var(--danger)}
-  .is-root .t{color:#9AA4AE}
-  .is-root .t:hover{background:#333B44;color:#fff}
 
   .toggle{
     position:absolute;right:-11px;top:50%;transform:translateY(-50%);
@@ -211,6 +231,7 @@
   </div>
   <div class="spacer"></div>
   <div class="group">
+    <button id="layoutBtn">表示：横</button>
     <button class="icon-btn" id="zoomOut" aria-label="縮小">−</button>
     <span class="zoom-label" id="zoomLabel">100%</span>
     <button class="icon-btn" id="zoomIn" aria-label="拡大">＋</button>
@@ -522,6 +543,9 @@
   }
 
   function render() {
+    var vertical = doc().layout === "v";
+    stage.className = vertical ? "vert" : "";
+    document.getElementById("layoutBtn").textContent = vertical ? "表示：縦" : "表示：横";
     stage.innerHTML = "";
     stage.appendChild(makeRow(doc().tree, 0));
     stage.style.transform = "scale(" + zoom + ")";
@@ -608,6 +632,11 @@
     delete store.docs[store.current];
     var ids = Object.keys(store.docs);
     if (ids.length) store.current = ids[0]; else newDoc("無題のツリー");
+    render(); save();
+  });
+
+  document.getElementById("layoutBtn").addEventListener("click", function () {
+    doc().layout = doc().layout === "v" ? "h" : "v";
     render(); save();
   });
 
