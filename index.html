@@ -106,6 +106,8 @@
     top:var(--elbow-top,50%);height:var(--elbow-h,0);
     background:var(--line);
   }
+  .row.top > .kids > .kid:first-child::before{top:var(--kc,50%)}
+  .row.top > .kids > .kid:first-child::after{top:var(--kc,50%)}
 
   /* ---------- 縦型レイアウト ---------- */
   .vert .row{flex-direction:column;align-items:center}
@@ -562,17 +564,27 @@
     }
     if (!node || !kids || !kids.firstChild) return;
 
-    var firstNode = kids.firstChild.querySelector(".node");
+    var kid = kids.firstChild;
+    var firstNode = kid.querySelector(".node");
     if (!firstNode) return;
 
-    var kr = kids.getBoundingClientRect();
-    var fr = firstNode.getBoundingClientRect();
-    var c1 = node.offsetHeight / 2;
-    var c2 = (fr.top - kr.top) / (zoom || 1) + firstNode.offsetHeight / 2;
+    // いったん初期状態に戻してから測る
+    node.style.marginTop = "";
+    kid.style.paddingTop = "";
+    kid.style.removeProperty("--kc");
 
-    kids.style.setProperty("--stub", c1 + "px");
-    kids.style.setProperty("--elbow-top", Math.min(c1, c2) + "px");
-    kids.style.setProperty("--elbow-h", Math.abs(c1 - c2) + "px");
+    var basePad = parseFloat(getComputedStyle(kid).paddingTop) || 0;
+    var c1 = node.offsetHeight / 2;
+    var c2 = basePad + firstNode.offsetHeight / 2;
+    var target = Math.max(c1, c2);
+
+    // 低いほうを押し下げて、ルートと第1子の中心を同じ高さに合わせる
+    if (target > c1) node.style.marginTop = (target - c1) + "px";
+    if (target > c2) kid.style.paddingTop = (basePad + target - c2) + "px";
+
+    kid.style.setProperty("--kc", target + "px");
+    kids.style.setProperty("--stub", target + "px");
+    kids.style.setProperty("--elbow-h", "0px");
   }
 
   function render() {
